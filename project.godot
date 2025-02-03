@@ -23,6 +23,10 @@ Composer="*res://Composer/Composer.gd"
 
 gdscript/warnings/untyped_declaration=2
 
+[dotnet]
+
+project/assembly_name="ComposerRevamp"
+
 [input]
 
 activate={
