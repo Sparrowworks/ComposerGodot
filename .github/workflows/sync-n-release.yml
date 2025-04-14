@@ -77,36 +77,30 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout main branch
+    - name: Checkout main branch for changes
       uses: actions/checkout@v3
       with:
         ref: main  # Start by checking out the main branch
+        fetch_depth: 0
 
-    - name: Checkout published branch or create if not exists
+    - name: Setup bot # This will create a "user" that reads the changes, creates commits and pushes them
       run: |
-        git fetch origin published || git checkout -b published  # Create 'published' if it doesn't exist
-        git checkout published  # Switch to the published branch
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Sync Composer.gd from main to published
+    - name: Checkout published branch or create it if it does not exists
       run: |
-        git checkout origin/main -- Composer/Composer.gd
-        git add Composer/Composer.gd
-        git commit -m "Sync Composer.gd from main to published" || echo "No changes to commit"
-    
-    - name: Sync README.md from main to published
-      run: |
-        git checkout origin/main -- README.md
-        git add README.md
-        git commit -m "Sync README.md from main to published" || echo "No changes to commit"
+        if git show-ref --quiet refs/remotes/origin/published; then
+          git checkout published
+        else
+          git checkout -b published
+        fi
 
-    - name: Sync LICENSE from main to published
+    - name: Batch sync files from main to published
       run: |
-        git checkout origin/main -- LICENSE
-        git add LICENSE
-        git commit -m "Sync LICENSE from main to published" || echo "No changes to commit"
-
-    - name: Push changes to published branch
-      run: |
+        git checkout main -- Composer/Composer.gd README.md LICENSE
+        git add Composer/Composer.gd README.md LICENSE
+        git commit -m "Sync files from main to published" || echo "No changes to commit"
         git push origin published
 
   release:
@@ -118,13 +112,13 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: published
-
+      
       - name: Generate release notes
         id: notes
         run: |
           git fetch --tags
           latest_tag=${{ needs.setup.outputs.latest_tag }}
-          commits=$(git log "$latest_tag"..origin/main --oneline || echo "No new commits.")
+          commits=$(git log "$latest_tag"..HEAD --oneline || echo "No new commits.")
           echo "release_notes=### Changes since $latest_tag:\n\n$commits" >> $GITHUB_ENV
 
       - name: Create GitHub Release
@@ -135,3 +129,10 @@ jobs:
           body: ${{ env.release_notes }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Git tag for this release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ needs.setup.outputs.new_tag }}
+          git push origin ${{ needs.setup.outputs.new_tag }}
