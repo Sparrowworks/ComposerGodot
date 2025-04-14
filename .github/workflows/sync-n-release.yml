@@ -118,7 +118,7 @@ jobs:
         run: |
           git fetch --tags
           latest_tag=${{ needs.setup.outputs.latest_tag }}
-          commits=$(git log "$latest_tag"..HEAD --oneline || echo "No new commits.")
+          commits=$(git log "$latest_tag"..origin/main --pretty=format:"- %s" || echo "No new commits.")
           echo "release_notes=### Changes since $latest_tag:\n\n$commits" >> $GITHUB_ENV
 
       - name: Create GitHub Release
